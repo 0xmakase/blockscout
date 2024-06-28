@@ -14,6 +14,7 @@ USER_OPS_INDEXER_FILE="services/user-ops-indexer.yml"
 # Replace placeholders in the docker-compose.yml
 sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$DOCKER_COMPOSE_FILE"
 sed -i "s|{{RPC_WS_URL}}|$WS_URL|g" "$DOCKER_COMPOSE_FILE"
+sed -i "s|{{CHAIN_ID}}|$CHAIN_ID|g" "$DOCKER_COMPOSE_FILE"
 
 # Replace placeholders in the common-blockscout.env
 sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$COMMON_BLOCKSCOUT_ENV_FILE"
