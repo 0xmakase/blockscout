@@ -25,6 +25,7 @@ sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$COMMON_BLOCKSCOUT_ENV_FILE"
 sed -i "s|{{CURRENCY_NAME}}|$CHAIN_NAME|g" "$COMMON_FRONTEND_ENV_FILE"
 sed -i "s|{{CURRENCY_SYMBOL}}|$UPPER_CHAIN_NAME|g" "$COMMON_FRONTEND_ENV_FILE"
 sed -i "s|{{DOMAIN_NAME}}|$DOMAIN_NAME|g" "$COMMON_FRONTEND_ENV_FILE"
+sed -i "s|{{CHAIN_ID}}|$CHAIN_ID|g" "$COMMON_FRONTEND_ENV_FILE"
 
 # Replace placeholders in the user-ops-indexer.yml
 sed -i "s|{{RPC_WS_URL}}|$WS_URL|g" "$USER_OPS_INDEXER_FILE"
