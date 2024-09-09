@@ -97,7 +97,9 @@ This script is designed to configure various files for blockchain services by re
 
 1. `CHAIN_ID` - The ID of the blockchain chain.
 2. `CHAIN_NAME` - The name of the blockchain chain.
-3. `RPC_URL` - The RPC URL for the blockchain chain.
+3. `DOMAIN_NAME` - The domain of the blockchain chain.
+4. `RPC_URL` - The RPC URL for the blockchain chain.
+5. `WALLET_PROJECT_ID` - Set WalletConnect project ID.
 
 The script will automatically generate the corresponding WebSocket URL (`WS_URL`) by replacing `http` with `ws` in the provided `RPC_URL`, and it will also convert the `CHAIN_NAME` to uppercase (`UPPER_CHAIN_NAME`).
 
@@ -106,12 +108,16 @@ The script will automatically generate the corresponding WebSocket URL (`WS_URL`
 Run the script with the following command:
 
 ```bash
-./generate-configs.sh <CHAIN_ID> <CHAIN_NAME> <RPC_URL>
+./generate-configs.sh <CHAIN_ID> <CHAIN_NAME> <DOMAIN_NAME> <RPC_URL> <WALLET_PROJECT_ID>
 ```
 ### Example
 ```bash
-./generate-configs.sh 1 ethereum https://mainnet.infura.io
+./generate-configs.sh 1 ethereum explorer.domain.eth https://mainnet.infura.io abbbbbbbd454320f12345f18e3a9abec
 ```
+```bash
+./generate-configs.sh 80085 bera beratest.0xmakase.co.jp https://bera-rpc.0xmakase.co.jp:8745/ abbbbbbbd454320f12345f18e3a9abec
+```
+
 
 ### Script Details
 
@@ -120,7 +126,9 @@ Run the script with the following command:
 
 CHAIN_ID=$1
 CHAIN_NAME=$2
-RPC_URL=$3
+DOMAIN_NAME=$3
+RPC_URL=$4
+WALLET_PROJECT_ID=$5
 WS_URL=${RPC_URL/http/ws}
 UPPER_CHAIN_NAME=$(echo "$CHAIN_NAME" | tr 'a-z' 'A-Z')
 
@@ -128,10 +136,12 @@ DOCKER_COMPOSE_FILE="docker-compose.yml"
 COMMON_BLOCKSCOUT_ENV_FILE="envs/common-blockscout.env"
 COMMON_FRONTEND_ENV_FILE="envs/common-frontend.env"
 USER_OPS_INDEXER_FILE="services/user-ops-indexer.yml"
+DEFAULT_CONF_TEMPLATE_FILE="proxy/default.conf.template"
 
 # Replace placeholders in the docker-compose.yml
 sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$DOCKER_COMPOSE_FILE"
 sed -i "s|{{RPC_WS_URL}}|$WS_URL|g" "$DOCKER_COMPOSE_FILE"
+sed -i "s|{{CHAIN_ID}}|$CHAIN_ID|g" "$DOCKER_COMPOSE_FILE"
 
 # Replace placeholders in the common-blockscout.env
 sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$COMMON_BLOCKSCOUT_ENV_FILE"
@@ -139,9 +149,16 @@ sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$COMMON_BLOCKSCOUT_ENV_FILE"
 # Replace placeholders in the common-frontend.env
 sed -i "s|{{CURRENCY_NAME}}|$CHAIN_NAME|g" "$COMMON_FRONTEND_ENV_FILE"
 sed -i "s|{{CURRENCY_SYMBOL}}|$UPPER_CHAIN_NAME|g" "$COMMON_FRONTEND_ENV_FILE"
+sed -i "s|{{DOMAIN_NAME}}|$DOMAIN_NAME|g" "$COMMON_FRONTEND_ENV_FILE"
+sed -i "s|{{CHAIN_ID}}|$CHAIN_ID|g" "$COMMON_FRONTEND_ENV_FILE"
+sed -i "s|{{RPC_URL}}|$RPC_URL|g" "$COMMON_FRONTEND_ENV_FILE"
+sed -i "s|{{WALLET_PROJECT_ID}}|$WALLET_PROJECT_ID|g" "$COMMON_FRONTEND_ENV_FILE"
 
 # Replace placeholders in the user-ops-indexer.yml
 sed -i "s|{{RPC_WS_URL}}|$WS_URL|g" "$USER_OPS_INDEXER_FILE"
+
+# Replace placeholders in the default.conf.template
+sed -i "s|{{DOMAIN_NAME}}|$DOMAIN_NAME|g" "$DEFAULT_CONF_TEMPLATE_FILE"
 
 echo "Configuration files generated for $CHAIN_NAME"
 ```
