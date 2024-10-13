@@ -24,7 +24,7 @@ defmodule Explorer.Mixfile do
         dialyzer: :test
       ],
       start_permanent: Mix.env() == :prod,
-      version: "6.8.0",
+      version: "6.8.1",
       xref: [exclude: [BlockScoutWeb.Routers.WebRouter.Helpers, Indexer.Helper]]
     ]
   end
@@ -122,7 +122,9 @@ defmodule Explorer.Mixfile do
       {:logger_json, "~> 5.1"},
       {:typed_ecto_schema, "~> 0.4.1", runtime: false},
       {:ueberauth, "~> 0.7"},
-      {:recon, "~> 2.5"}
+      {:recon, "~> 2.5"},
+      {:varint, "~> 1.4"},
+      {:blake2, "~> 1.0"}
     ]
   end
 
