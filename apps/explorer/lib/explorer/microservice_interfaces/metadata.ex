@@ -9,6 +9,7 @@ defmodule Explorer.MicroserviceInterfaces.Metadata do
   alias HTTPoison.Response
 
   import Explorer.Chain.Address.MetadataPreloader, only: [maybe_preload_meta: 3]
+  import Explorer.Chain.SmartContract.Proxy.Models.Implementation, only: [proxy_implementations_association: 0]
 
   require Logger
   @request_timeout :timer.seconds(5)
@@ -22,8 +23,8 @@ defmodule Explorer.MicroserviceInterfaces.Metadata do
     with :ok <- Microservice.check_enabled(__MODULE__) do
       body = %{
         addresses: Enum.join(addresses, ","),
-        tagsLimit: @tags_per_address_limit,
-        chainId: Application.get_env(:block_scout_web, :chain_id)
+        tags_limit: @tags_per_address_limit,
+        chain_id: Application.get_env(:block_scout_web, :chain_id)
       }
 
       http_get_request(addresses_metadata_url(), body)
@@ -38,8 +39,8 @@ defmodule Explorer.MicroserviceInterfaces.Metadata do
     with :ok <- Microservice.check_enabled(__MODULE__) do
       params =
         params
-        |> Map.put("pageSize", @page_size)
-        |> Map.put("chainId", Application.get_env(:block_scout_web, :chain_id))
+        |> Map.put("page_size", @page_size)
+        |> Map.put("chain_id", Application.get_env(:block_scout_web, :chain_id))
 
       http_get_request_for_proxy_method(addresses_url(), params, &prepare_addresses_response/1)
     end
@@ -136,14 +137,18 @@ defmodule Explorer.MicroserviceInterfaces.Metadata do
     Map.put(tag, "meta", Jason.decode!(meta))
   end
 
-  defp prepare_addresses_response({:ok, %{"addresses" => addresses} = response}) do
+  defp prepare_addresses_response({:ok, %{"items" => addresses} = response}) do
     {:ok,
      Map.put(
        response,
-       "addresses",
+       "items",
        addresses
        |> Chain.hashes_to_addresses(
-         necessity_by_association: %{names: :optional, smart_contract: :optional, proxy_implementations: :optional}
+         necessity_by_association: %{
+           :names => :optional,
+           :smart_contract => :optional,
+           proxy_implementations_association() => :optional
+         }
        )
        |> Enum.map(fn address -> {address, address.transactions_count} end)
      )}

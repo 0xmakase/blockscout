@@ -9,23 +9,27 @@ defmodule ConfigHelper do
   def repos do
     base_repos = [Explorer.Repo, Explorer.Repo.Account]
 
-    repos =
-      case chain_type() do
-        :ethereum -> base_repos ++ [Explorer.Repo.Beacon]
-        :optimism -> base_repos ++ [Explorer.Repo.Optimism]
-        :polygon_edge -> base_repos ++ [Explorer.Repo.PolygonEdge]
-        :polygon_zkevm -> base_repos ++ [Explorer.Repo.PolygonZkevm]
-        :rsk -> base_repos ++ [Explorer.Repo.RSK]
-        :shibarium -> base_repos ++ [Explorer.Repo.Shibarium]
-        :suave -> base_repos ++ [Explorer.Repo.Suave]
-        :filecoin -> base_repos ++ [Explorer.Repo.Filecoin]
-        :stability -> base_repos ++ [Explorer.Repo.Stability]
-        :zksync -> base_repos ++ [Explorer.Repo.ZkSync]
-        :celo -> base_repos ++ [Explorer.Repo.Celo]
-        :arbitrum -> base_repos ++ [Explorer.Repo.Arbitrum]
-        :blackfort -> base_repos ++ [Explorer.Repo.Blackfort]
-        _ -> base_repos
-      end
+    chain_type_repo =
+      %{
+        arbitrum: Explorer.Repo.Arbitrum,
+        blackfort: Explorer.Repo.Blackfort,
+        celo: Explorer.Repo.Celo,
+        ethereum: Explorer.Repo.Beacon,
+        filecoin: Explorer.Repo.Filecoin,
+        optimism: Explorer.Repo.Optimism,
+        polygon_edge: Explorer.Repo.PolygonEdge,
+        polygon_zkevm: Explorer.Repo.PolygonZkevm,
+        rsk: Explorer.Repo.RSK,
+        scroll: Explorer.Repo.Scroll,
+        shibarium: Explorer.Repo.Shibarium,
+        stability: Explorer.Repo.Stability,
+        suave: Explorer.Repo.Suave,
+        zilliqa: Explorer.Repo.Zilliqa,
+        zksync: Explorer.Repo.ZkSync
+      }
+      |> Map.get(chain_type())
+
+    chain_type_repos = (chain_type_repo && [chain_type_repo]) || []
 
     ext_repos =
       [
@@ -36,7 +40,7 @@ defmodule ConfigHelper do
       |> Enum.filter(&elem(&1, 0))
       |> Enum.map(&elem(&1, 1))
 
-    repos ++ ext_repos
+    base_repos ++ chain_type_repos ++ ext_repos
   end
 
   @spec hackney_options() :: any()
@@ -160,16 +164,14 @@ defmodule ConfigHelper do
 
   @spec indexer_memory_limit() :: integer()
   def indexer_memory_limit do
-    indexer_memory_limit_default = 1
-
     "INDEXER_MEMORY_LIMIT"
-    |> safe_get_env(to_string(indexer_memory_limit_default))
+    |> safe_get_env(nil)
     |> String.downcase()
     |> Integer.parse()
     |> case do
       {integer, g} when g in ["g", "gb", ""] -> integer <<< 30
       {integer, m} when m in ["m", "mb"] -> integer <<< 20
-      _ -> indexer_memory_limit_default <<< 30
+      _ -> nil
     end
   end
 
@@ -306,19 +308,21 @@ defmodule ConfigHelper do
   @supported_chain_types [
     "default",
     "arbitrum",
+    "blackfort",
+    "celo",
     "ethereum",
     "filecoin",
     "optimism",
     "polygon_edge",
     "polygon_zkevm",
     "rsk",
+    "scroll",
     "shibarium",
     "stability",
     "suave",
     "zetachain",
-    "zksync",
-    "celo",
-    "blackfort"
+    "zilliqa",
+    "zksync"
   ]
 
   @spec chain_type() :: atom() | nil

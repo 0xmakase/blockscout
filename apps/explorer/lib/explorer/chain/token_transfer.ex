@@ -136,6 +136,7 @@ defmodule Explorer.Chain.TokenTransfer do
   require Explorer.Chain.TokenTransfer.Schema
 
   import Ecto.Changeset
+  import Explorer.Chain.SmartContract.Proxy.Models.Implementation, only: [proxy_implementations_association: 0]
 
   alias Explorer.Chain
   alias Explorer.Chain.{DenormalizationHelper, Hash, Log, TokenTransfer}
@@ -239,8 +240,8 @@ defmodule Explorer.Chain.TokenTransfer do
           DenormalizationHelper.extend_transaction_preload([
             :transaction,
             :token,
-            [from_address: [:names, :smart_contract, :proxy_implementations]],
-            [to_address: [:scam_badge, :names, :smart_contract, :proxy_implementations]]
+            [from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]],
+            [to_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]]
           ])
 
         only_consensus_transfers_query()
@@ -266,8 +267,8 @@ defmodule Explorer.Chain.TokenTransfer do
           DenormalizationHelper.extend_transaction_preload([
             :transaction,
             :token,
-            [from_address: [:names, :smart_contract, :proxy_implementations]],
-            [to_address: [:scam_badge, :names, :smart_contract, :proxy_implementations]]
+            [from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]],
+            [to_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]]
           ])
 
         only_consensus_transfers_query()
@@ -282,6 +283,9 @@ defmodule Explorer.Chain.TokenTransfer do
     end
   end
 
+  @doc """
+  Returns the ordered paginated list of consensus token transfers (consensus blocks only) from the DB with address, token, transaction preloads
+  """
   @spec fetch([paging_options | api?]) :: []
   def fetch(options) do
     paging_options = Keyword.get(options, :paging_options, @default_paging_options)
@@ -296,8 +300,8 @@ defmodule Explorer.Chain.TokenTransfer do
           DenormalizationHelper.extend_transaction_preload([
             :transaction,
             :token,
-            [from_address: [:names, :smart_contract, :proxy_implementations]],
-            [to_address: [:names, :smart_contract, :proxy_implementations]]
+            [from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]],
+            [to_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]]
           ])
 
         only_consensus_transfers_query()
