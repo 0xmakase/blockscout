@@ -5,7 +5,26 @@ CHAIN_NAME=$2
 DOMAIN_NAME=$3
 RPC_URL=$4
 WALLET_PROJECT_ID=$5
-WS_URL=${RPC_URL/http/ws}
+
+# RPC_URLからホスト名と末尾のポート番号を抽出し、ポート番号を+1する
+HOST=$(echo "$RPC_URL" | sed -E 's|https?://([^:/]+).*|\1|')
+PORT=$(echo "$RPC_URL" | grep -oE ':[0-9]+/?$' | grep -oE '[0-9]+')
+
+# ポート番号が指定されていない場合はデフォルトで80に設定
+if [ -z "$PORT" ]; then
+  PORT=80
+fi
+
+# ポート番号をインクリメント
+WS_PORT=$((PORT + 1))
+
+# インクリメントされたポート番号を使用してWS_URLを構築
+if [[ "$RPC_URL" == http* ]]; then
+  WS_URL="ws://$HOST:$WS_PORT"
+else
+  WS_URL="$RPC_URL"
+fi
+
 UPPER_CHAIN_NAME=$(echo "$CHAIN_NAME" | tr 'a-z' 'A-Z')
 
 DOCKER_COMPOSE_FILE="docker-compose.yml"
