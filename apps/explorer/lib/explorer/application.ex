@@ -142,8 +142,21 @@ defmodule Explorer.Application do
         configure(Explorer.Migrator.TransactionBlockConsensus),
         configure(Explorer.Migrator.TokenTransferBlockConsensus),
         configure(Explorer.Migrator.RestoreOmittedWETHTransfers),
+        configure(Explorer.Migrator.FilecoinPendingAddressOperations),
+        configure_mode_dependent_process(Explorer.Migrator.ShrinkInternalTransactions, :indexer),
+        configure_chain_type_dependent_process(Explorer.Chain.Cache.BlackfortValidatorsCounters, :blackfort),
         configure_chain_type_dependent_process(Explorer.Chain.Cache.StabilityValidatorsCounters, :stability),
-        configure_mode_dependent_process(Explorer.Migrator.ShrinkInternalTransactions, :indexer)
+        Explorer.Migrator.SanitizeDuplicatedLogIndexLogs
+        |> configure()
+        |> configure_chain_type_dependent_process([
+          :polygon_zkevm,
+          :rsk,
+          :filecoin
+        ]),
+        configure_mode_dependent_process(Explorer.Migrator.SanitizeMissingTokenBalances, :indexer),
+        configure_mode_dependent_process(Explorer.Migrator.SanitizeReplacedTransactions, :indexer),
+        configure_mode_dependent_process(Explorer.Migrator.ReindexInternalTransactionsWithIncompatibleStatus, :indexer),
+        Explorer.Migrator.RefetchContractCodes |> configure() |> configure_chain_type_dependent_process(:zksync)
       ]
       |> List.flatten()
 
@@ -153,20 +166,23 @@ defmodule Explorer.Application do
   defp repos_by_chain_type do
     if Mix.env() == :test do
       [
+        Explorer.Repo.Arbitrum,
         Explorer.Repo.Beacon,
+        Explorer.Repo.Blackfort,
+        Explorer.Repo.BridgedTokens,
+        Explorer.Repo.Celo,
+        Explorer.Repo.Filecoin,
         Explorer.Repo.Optimism,
         Explorer.Repo.PolygonEdge,
         Explorer.Repo.PolygonZkevm,
-        Explorer.Repo.ZkSync,
-        Explorer.Repo.Celo,
         Explorer.Repo.RSK,
+        Explorer.Repo.Scroll,
         Explorer.Repo.Shibarium,
-        Explorer.Repo.Suave,
-        Explorer.Repo.Arbitrum,
-        Explorer.Repo.BridgedTokens,
-        Explorer.Repo.Filecoin,
+        Explorer.Repo.ShrunkInternalTransactions,
         Explorer.Repo.Stability,
-        Explorer.Repo.ShrunkInternalTransactions
+        Explorer.Repo.Suave,
+        Explorer.Repo.Zilliqa,
+        Explorer.Repo.ZkSync
       ]
     else
       []
@@ -174,7 +190,7 @@ defmodule Explorer.Application do
   end
 
   defp account_repo do
-    if System.get_env("ACCOUNT_DATABASE_URL") || Mix.env() == :test do
+    if Application.get_env(:explorer, Explorer.Account)[:enabled] || Mix.env() == :test do
       [Explorer.Repo.Account]
     else
       []
@@ -195,6 +211,14 @@ defmodule Explorer.Application do
 
   defp configure(process) do
     if should_start?(process) do
+      process
+    else
+      []
+    end
+  end
+
+  defp configure_chain_type_dependent_process(process, chain_types) when is_list(chain_types) do
+    if Application.get_env(:explorer, :chain_type) in chain_types do
       process
     else
       []

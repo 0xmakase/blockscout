@@ -35,7 +35,8 @@ defmodule BlockScoutWeb.API.V2.BlockController do
   alias Explorer.Chain.Celo.EpochReward, as: CeloEpochReward
   alias Explorer.Chain.Celo.Reader, as: CeloReader
   alias Explorer.Chain.InternalTransaction
-  alias Explorer.Chain.Optimism.TxnBatch, as: OptimismTxnBatch
+  alias Explorer.Chain.Optimism.TransactionBatch, as: OptimismTransactionBatch
+  alias Explorer.Chain.Scroll.Reader, as: ScrollReader
 
   case Application.compile_env(:explorer, :chain_type) do
     :ethereum ->
@@ -75,6 +76,14 @@ defmodule BlockScoutWeb.API.V2.BlockController do
         :arbitrum_confirmation_transaction => :optional
       }
 
+    :zilliqa ->
+      @chain_type_transaction_necessity_by_association %{}
+      @chain_type_block_necessity_by_association %{
+        :zilliqa_quorum_certificate => :optional,
+        :zilliqa_aggregate_quorum_certificate => :optional,
+        [zilliqa_aggregate_quorum_certificate: [:nested_quorum_certificates]] => :optional
+      }
+
     _ ->
       @chain_type_transaction_necessity_by_association %{}
       @chain_type_block_necessity_by_association %{}
@@ -83,9 +92,10 @@ defmodule BlockScoutWeb.API.V2.BlockController do
   @transaction_necessity_by_association [
     necessity_by_association:
       %{
-        [created_contract_address: [:names, :smart_contract, :proxy_implementations]] => :optional,
-        [from_address: [:names, :smart_contract, :proxy_implementations]] => :optional,
-        [to_address: [:names, :smart_contract, :proxy_implementations]] => :optional,
+        [created_contract_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]] =>
+          :optional,
+        [from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]] => :optional,
+        [to_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]] => :optional,
         :block => :optional
       }
       |> Map.merge(@chain_type_transaction_necessity_by_association)
@@ -93,9 +103,10 @@ defmodule BlockScoutWeb.API.V2.BlockController do
 
   @internal_transaction_necessity_by_association [
     necessity_by_association: %{
-      [created_contract_address: [:names, :smart_contract, :proxy_implementations]] => :optional,
-      [from_address: [:names, :smart_contract, :proxy_implementations]] => :optional,
-      [to_address: [:names, :smart_contract, :proxy_implementations]] => :optional
+      [created_contract_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]] =>
+        :optional,
+      [from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]] => :optional,
+      [to_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]] => :optional
     }
   ]
 
@@ -104,7 +115,7 @@ defmodule BlockScoutWeb.API.V2.BlockController do
   @block_params [
     necessity_by_association:
       %{
-        [miner: [:names, :smart_contract, :proxy_implementations]] => :optional,
+        [miner: [:names, :smart_contract, proxy_implementations_association()]] => :optional,
         :uncles => :optional,
         :nephews => :optional,
         :rewards => :optional,
@@ -212,7 +223,34 @@ defmodule BlockScoutWeb.API.V2.BlockController do
 
     {blocks, next_page} =
       batch_number
-      |> OptimismTxnBatch.batch_blocks(full_options)
+      |> OptimismTransactionBatch.batch_blocks(full_options)
+      |> split_list_by_page()
+
+    next_page_params = next_page |> next_page_params(blocks, delete_parameters_from_next_page_params(params))
+
+    conn
+    |> put_status(200)
+    |> render(:blocks, %{
+      blocks: blocks |> maybe_preload_ens() |> maybe_preload_metadata(),
+      next_page_params: next_page_params
+    })
+  end
+
+  @doc """
+    Function to handle GET requests to `/api/v2/blocks/scroll-batch/:batch_number` endpoint.
+    It renders the list of L2 blocks bound to the specified batch.
+  """
+  @spec scroll_batch(Plug.Conn.t(), any()) :: Plug.Conn.t()
+  def scroll_batch(conn, %{"batch_number" => batch_number} = params) do
+    full_options =
+      params
+      |> select_block_type()
+      |> Keyword.merge(paging_options(params))
+      |> Keyword.merge(@api_true)
+
+    {blocks, next_page} =
+      batch_number
+      |> ScrollReader.batch_blocks(full_options)
       |> split_list_by_page()
 
     next_page_params = next_page |> next_page_params(blocks, delete_parameters_from_next_page_params(params))
@@ -306,7 +344,9 @@ defmodule BlockScoutWeb.API.V2.BlockController do
     with {:ok, block} <- block_param_to_block(block_hash_or_number) do
       full_options =
         [
-          necessity_by_association: %{[address: [:names, :smart_contract, :proxy_implementations]] => :optional},
+          necessity_by_association: %{
+            [address: [:names, :smart_contract, proxy_implementations_association()]] => :optional
+          },
           api?: true
         ]
         |> Keyword.merge(paging_options(params))
@@ -387,7 +427,7 @@ defmodule BlockScoutWeb.API.V2.BlockController do
     with {:ok, reward_type_atom} <- celo_reward_type_to_atom(reward_type),
          {:ok, block} <-
            block_param_to_block(block_hash_or_number) do
-      address_associations = [:names, :smart_contract, :proxy_implementations]
+      address_associations = [:names, :smart_contract, proxy_implementations_association()]
 
       full_options =
         [
